@@ -1,0 +1,36 @@
+services:
+  mongodb:
+    image: mongo:latest
+    restart: always
+    expose: 
+      - 27017
+    environment:
+      - MONGO_INIT_DATABASE={DB_NAME_INIT:-users}
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=12345
+  mogno-express:
+    image: mongo-express
+    restart: always
+    ports: 
+      - 8081:8081
+    environment: 
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=root
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=12345
+    depends_on:
+        - mongodb
+  server:
+    image: enemygg/delivery:latest
+    restart: always
+    ports: 
+        - 2929:2929
+    environment: 
+        - HOST_DB=mongodb://mongodb:27017/
+        - DB_NAME_USERS=users
+        - DB_USER=root
+        - DB_PASSWORD=12345
+        - DB_NAME_ADVERTISEMENT=advertisement
+        - SERVER_PORT=2929
+        - COOKIE_SECRET=netology
+    depends_on:
+        - mongo-express
