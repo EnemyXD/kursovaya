@@ -8,7 +8,7 @@ services:
       - MONGO_INIT_DATABASE={DB_NAME_INIT:-users}
       - MONGO_INITDB_ROOT_USERNAME=root
       - MONGO_INITDB_ROOT_PASSWORD=12345
-  mogno-express:
+  mongo-express:
     image: mongo-express
     restart: always
     ports: 

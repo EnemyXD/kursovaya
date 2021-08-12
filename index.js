@@ -14,32 +14,42 @@ const router = require("./routes/routes");
 
 const corsOptions = {
   origin: "http://localhost:3000",
-  methods: ["POST"],
+  methods: ["POST", "GET"],
   credentials: true,
-};
-
-const options = {
-  usernameField: "username",
-  passwordFiels: "password",
-  passReqToCallback: false,
 };
 
 passport.use(
   "local",
-  new LocalStrategy(options, async (username, password, done) => {
-    await User.findOne({ username: username }, (err, user) => {
-      if (err) {
-        return done(err);
-      }
-      if (!user) {
-        return done(null, false);
-      }
-      if (user.password !== password) {
-        return done(null, false);
-      }
-      return done(null, user);
-    });
-  })
+  new LocalStrategy(
+    {
+      usernameField: "username",
+      passwordFiels: "password",
+      session: true,
+    },
+    async (username, password, done) => {
+      await User.findOne({ username: username }, (err, user) => {
+        if (err) {
+          console.log(done);
+          return done(err);
+        }
+        if (!user) {
+          return done(null, false, {
+            resultCode: 1,
+            d: { login: "", email: "" },
+            message: "INCORRECT DATA",
+          });
+        }
+        if (user.password !== password) {
+          return done(null, false, {
+            resultCode: 1,
+            d: { login: "", email: "" },
+            message: "INCORRECT DATA",
+          });
+        }
+        return done(null, user);
+      });
+    }
+  )
 );
 
 passport.serializeUser((user, cb) => {
@@ -73,7 +83,7 @@ app.use(
 app.use(
   cors({
     origin: "http://localhost:3000",
-    methods: ["POST"],
+    methods: ["POST", "GET"],
     credentials: true,
   })
 );
