@@ -5,6 +5,7 @@ const LocalStrategy = require("passport-local").Strategy;
 const User = require("./models/user");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const bcrypt = require("bcryptjs");
 
 const app = express();
 
@@ -39,7 +40,7 @@ passport.use(
             message: "INCORRECT DATA",
           });
         }
-        if (user.password !== password) {
+        if (!bcrypt.compareSync(password, user.password)) {
           return done(null, false, {
             resultCode: 1,
             d: { login: "", email: "" },

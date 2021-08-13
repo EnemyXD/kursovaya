@@ -1,6 +1,5 @@
 const { Schema } = require("mongoose");
 const mongoose = require("mongoose");
-const uid = required("node-unique-id-generator");
 
 const AdvertisementScheme = new Schema({
   shortText: {
@@ -15,7 +14,6 @@ const AdvertisementScheme = new Schema({
   },
   userId: {
     type: Object,
-    default: uid.generateUnigueId(),
   },
   createdAt: {
     type: Date,
