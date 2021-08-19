@@ -6,31 +6,37 @@ const User = require("./models/user");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
+const http = require("http");
+const socketIO = require("socket.io");
+
+const Message = require("./models/messages");
 
 const app = express();
+const server = http.Server(app);
+const io = socketIO(server, {
+  cors: {
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+});
 
 const PORT = process.env.SERVER_PORT || 2929;
 
 const router = require("./routes/routes");
 
-const corsOptions = {
-  origin: "http://localhost:3000",
-  methods: ["POST", "GET"],
-  credentials: true,
-};
-
 passport.use(
   "local",
   new LocalStrategy(
     {
-      usernameField: "username",
+      usernameField: "email",
       passwordFiels: "password",
       session: true,
     },
-    async (username, password, done) => {
-      await User.findOne({ username: username }, (err, user) => {
+    async (email, password, done) => {
+      await User.findOne({ email: email }, (err, user) => {
         if (err) {
-          console.log(done);
+          console.log(err);
           return done(err);
         }
         if (!user) {
@@ -73,6 +79,8 @@ app.use(express.static(path.join(__dirname, "build")));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 
+app.use(express.static(path.join(__dirname, "upload")));
+
 app.use(
   require("express-session")({
     secret: process.env.COOKIE_SECRET,
@@ -92,8 +100,120 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
+const sessionMiddleware = require("express-session")({
+  secret: process.env.COOKIE_SECRET,
+  saveUninitialized: false,
+  resave: false,
+});
+
+app.use(sessionMiddleware);
+io.use((socket, next) => {
+  sessionMiddleware(socket.request, {}, next);
+});
+
+// io.on("connect", (socket) => {
+//   const session = socket.request.session;
+
+//   // Используем примерно так:
+//   session.user.login;
+// });
+
 app.use("/", router);
 
-app.listen(PORT, () => {
+io.on("connection", async (socket) => {
+  const { id } = socket;
+  const { roomName } = socket.handshake.query;
+
+  let ArrayOfRoomName;
+
+  if (!roomName) {
+    try {
+      await Message.find({ roomName: "common" }, (err, doc) => {
+        if (err) {
+          console.log(err);
+        }
+        if (doc) {
+          socket.emit("recieveOldCommon", doc);
+          console.log("send");
+        }
+      }).select("-__v -_id -roomName");
+    } catch (e) {
+      console.log(e);
+    }
+  } else {
+    ArrayOfRoomName = roomName.split("-").sort();
+    try {
+      let messages = await Message.find({
+        roomName: `${ArrayOfRoomName[0]}-${ArrayOfRoomName[1]}`,
+      });
+      if (messages) {
+        socket.emit("recieveOldPrivate", messages);
+      }
+    } catch (e) {
+      console.log(e);
+    }
+  }
+
+  console.log("socket connected: " + id);
+
+  socket.on("message-to-me", (msg) => {
+    msg.type = "me";
+    socket.emit("message-to-me", msg);
+  });
+
+  socket.on("message-to-all", async (msg) => {
+    try {
+      await Message.create(
+        {
+          roomName: "common",
+          username: msg.username,
+          text: msg.text,
+          Data: Date.now(),
+        },
+        (err, doc) => {
+          if (err) {
+            console.log(err);
+          }
+          socket.broadcast.emit("message-to-all", doc);
+          socket.emit("message-to-all", doc);
+        }
+      );
+    } catch (e) {
+      console.log(e);
+    }
+  });
+
+  roomName &&
+    console.log(`Socket roomName: ${ArrayOfRoomName[0]}-${ArrayOfRoomName[1]}`);
+  roomName && socket.join(`${ArrayOfRoomName[0]}-${ArrayOfRoomName[1]}`);
+  socket.on("message-to-room", async (msg) => {
+    try {
+      await Message.create(
+        {
+          roomName: roomName,
+          username: msg.username,
+          text: msg.text,
+          Data: Date.now(),
+        },
+        (err, doc) => {
+          if (err) {
+            console.log(err);
+          }
+          socket
+            .to(`${ArrayOfRoomName[0]}-${ArrayOfRoomName[1]}`)
+            .emit("message-to-room", doc);
+          socket.emit("message-to-room", doc);
+        }
+      );
+    } catch (e) {
+      console.log(e);
+    }
+  });
+
+  socket.on("disconnect", () => {
+    console.log("socket disconnected: " + id);
+  });
+});
+server.listen(PORT, () => {
   console.log(`server listening on ${PORT} port`);
 });

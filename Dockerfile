@@ -8,5 +8,6 @@ COPY *.js ./
 ADD build /code/build
 ADD models /code/models
 ADD routes /code/routes
+ADD upload /code/upload
 
 CMD ["npm", "start"]

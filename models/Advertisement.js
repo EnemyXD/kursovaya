@@ -10,7 +10,15 @@ const AdvertisementScheme = new Schema({
     type: String,
   },
   images: {
-    type: Array,
+    fieldname: String,
+    originalname: String,
+    encoding: String,
+    mimetype: String,
+    destination: String,
+    filename: String,
+    path: String,
+    size: Number,
+    file: String,
   },
   userId: {
     type: Object,
